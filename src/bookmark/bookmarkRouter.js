@@ -44,7 +44,7 @@ bookmarkRouter
     .route('/bookmarks/:id')
     .get((req, res) => {
         const { id } = req.params;
-        const target = bookmarks.find(b => b.id === Number(id));
+        const target = bookmarks.find(b => b.id == id);
 
         if (!target) {
             logger.error(`Could not find bookmark with id of ${id}`);
@@ -58,7 +58,7 @@ bookmarkRouter
     .delete((req, res) => {
         const { id } = req.params;
 
-        const bookmarkIndex = bookmarks.findIndex(b => b.id === Number(id));
+        const bookmarkIndex = bookmarks.findIndex(b => b.id == id);
 
         if (bookmarkIndex === -1) {
             logger.error(`Bookmark id ${id} does not exist`);
