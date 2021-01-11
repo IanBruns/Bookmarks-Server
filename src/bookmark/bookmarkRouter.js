@@ -1,11 +1,20 @@
+const { json } = require('express');
 const express = require('express');
+const xss = require('xss');
 const { v4: uuid } = require('uuid');
 const logger = require('../logger');
 const BookmarksService = require('./bookmark-service');
 
 const bookmarkRouter = express.Router();
+const jsonParser = express.json();
 
-bookmarkRouter.use(express.json());
+const serializeBookmark = bookmark => ({
+    id: bookmark.id,
+    name: xss(bookmark.name),
+    url: xss(bookmark.url),
+    description: xss(bookmark.description),
+    rating: bookmark.rating
+});
 
 bookmarkRouter
     .route('/bookmarks')
@@ -17,32 +26,31 @@ bookmarkRouter
             })
             .catch(next);
     })
-    .post((req, res) => {
+    .post(jsonParser, (req, res, next) => {
         const { title, url, description, rating } = req.body;
-        if (!title || !url || !description || !rating) {
-            logger.error('Missing data = title/url/description/rating');
-            return res
-                .status(400)
-                .send('Invalid Data');
+        const newBookmark = { title, url, description, rating };
+
+        if (newBookmark.rating > 5 || newBookmark.ratin < 0) {
+            return res.status(400)
+                .json({
+                    error: { message: 'rating must be between 1 and 5' }
+                });
+        }
+        for (const [key, value] of Object.entries(newBookmark)) {
+            if (key != 'description' && value == null) {
+                return res.status(400)
+                    .json({
+                        error: { message: `Missing '${key}' in request body` }
+                    });
+            }
         }
 
-        const id = uuid();
-
-        const bookmark = {
-            id,
-            title,
-            url,
-            description,
-            rating
-        };
-
-        bookmarks.push(bookmark);
-
-        logger.info(`Created Bookmark with and id of ${id}`);
-        res
-            .status(201)
-            .location(`http://localhost:8000/bookmarks/${id}`)
-            .json(bookmark);
+        BookmarksService.insertBookmark(req.app.get('db'), newBookmark)
+            .then(bookmark =>
+                res.status(201)
+                    .location(`/bookmarks/${bookmark.id}`)
+                    .json(serializeBookmark(bookmark)))
+            .catch(next);
     });
 
 bookmarkRouter

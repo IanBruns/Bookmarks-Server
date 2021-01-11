@@ -48,7 +48,54 @@ describe.only('Bookmark Endpoints', () => {
         });
     });
 
-    describe('GET /bookmars/:bookmark_id', () => {
+    describe.only('POST /bookmarks', () => {
+        it('creates a new bookmark responding with a 201 and new bookmark', () => {
+            const newBookmark = {
+                title: 'New Title',
+                url: 'www.new-url.com',
+                description: 'New Description',
+                rating: 4
+            };
+            return supertest(app)
+                .post('/bookmarks')
+                .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                .send(newBookmark)
+                .expect(201);
+        });
+
+        it('creates a new bookmark responding with a 201 and a new bookmark w/o a description', () => {
+            const newBookmark = {
+                title: 'New Title',
+                url: 'www.new-url.com',
+                rating: 4
+            };
+
+            return supertest(app)
+                .post('/bookmarks')
+                .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                .send(newBookmark)
+                .expect(201);
+        });
+
+        context('rejection cases', () => {
+            it('Returns a 400 when the rating is over 5', () => {
+                const newBookmark = {
+                    title: 'New Title',
+                    url: 'www.new-url.com',
+                    description: 'New Description',
+                    rating: 6
+                };
+
+                return supertest(app)
+                    .post('/bookmarks')
+                    .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                    .send(newBookmark)
+                    .expect(400, { error: { message: 'rating must be between 1 and 5' } });
+            });
+        });
+    });
+
+    describe('GET /bookmarks/:bookmark_id', () => {
         context('There is nothing in the database', () => {
             const fakeId = 123456789;
             it('returns an error', () => {
