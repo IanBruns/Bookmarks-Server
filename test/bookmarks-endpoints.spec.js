@@ -1,8 +1,9 @@
 const { expect } = require('chai');
+const { contentSecurityPolicy } = require('helmet');
 const knex = require('knex');
 const supertest = require('supertest');
 const app = require('../src/app');
-const { makeBookmarkArray } = require('./bookmarks.fixtures');
+const { makeBookmarkArray, makeMaliciousBookmark } = require('./bookmarks.fixtures');
 
 describe.only('Bookmark Endpoints', () => {
     let db;
@@ -48,7 +49,7 @@ describe.only('Bookmark Endpoints', () => {
         });
     });
 
-    describe.only('POST /bookmarks', () => {
+    describe('POST /bookmarks', () => {
         it('creates a new bookmark responding with a 201 and new bookmark', () => {
             const newBookmark = {
                 title: 'New Title',
@@ -93,6 +94,22 @@ describe.only('Bookmark Endpoints', () => {
                     .expect(400, { error: { message: 'rating must be between 1 and 5' } });
             });
         });
+
+        context('Given an XSS attack', () => {
+            const { maliciousBookmark, expectedBookmark } = makeMaliciousBookmark();
+
+            it('Removes XSS content', () => {
+                return supertest(app)
+                    .post('/bookmarks')
+                    .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                    .send(maliciousBookmark)
+                    .expect(201)
+                    .expect(res => {
+                        expect(res.body.title).to.eql(expectedBookmark.title);
+                        expect(res.body.url).to.eql(expectedBookmark.url);
+                    });
+            });
+        });
     });
 
     describe('GET /bookmarks/:bookmark_id', () => {
@@ -125,5 +142,43 @@ describe.only('Bookmark Endpoints', () => {
                     .expect(200, target_bookmark);
             });
         });
+    });
+
+    describe.only('DELETE /bookmarks/:bookmark_id', () => {
+        context('When there are no bookmarks in the database', () => {
+            const bookmarkId = 1234;
+            it('returns rejected due to no bookmark', () => {
+                return supertest(app)
+                    .delete(`/bookmarks/${bookmarkId}`)
+                    .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+                    .expect(404, { error: { message: `Bookmark doesn't exist` } });
+            });
+        });
+
+        // context('When there are bookmarks in the database', () => {
+        //     const testBookmarks = makeBookmarkArray();
+
+        //     beforeEach('Add Bookmarks into database', () => {
+        //         return db
+        //             .into('bookmarks_store')
+        //             .insert(testBookmarks);
+        //     });
+
+        //     it('responds with a 204 and removes the bookmark', () => {
+        //         const idToRemove = 1;
+        //         const expectedBookmarks = testBookmarks.filter(bookmark => bookmark.id !== idToRemove);
+
+        //         return supertest(app)
+        //             .delete(`/bookmarks/${idToRemove}`)
+        //             .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+        //             .expect(204)
+        //             .expect(res =>
+        //                 supertest(app)
+        //                     .get('/bookmarks')
+        //                     .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+        //                     .expect(expectedBookmarks)
+        //             );
+        //     });
+        // });
     });
 });

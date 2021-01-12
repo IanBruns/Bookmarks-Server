@@ -37,6 +37,11 @@ function makeMaliciousBookmark() {
         url: '`Bad image <img src="https://url.to.file.which/does-not.exist">. But not <strong>all</strong> bad.`',
         rating: 1
     };
+
+    return {
+        maliciousBookmark,
+        expectedBookmark
+    }
 }
 
 module.exports = {
